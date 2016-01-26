@@ -1,0 +1,23 @@
+extend layout
+block content
+  div.container
+    div.row
+    div.row
+      ol.breadcrumb
+        li
+          a(href='#') Home
+        li
+          a(href="#") Libray
+        li.active Data
+     div.row
+       div.col-md-3
+        form(method="post",action="/socket")
+          div.form-group
+            - var i=10
+            label Please choose room to enter
+            select.form-control(name='room')
+              - for(var i=0;i<10;i++){
+                option(value="#{i}") Room#{i}
+              - }
+          button.btn.btn-default(type='submit') submit 
+
