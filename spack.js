@@ -1,3 +1,5 @@
+process.env.http_proxy="http://cnwuco:welcome19!@proxy.chn.fujixerox.com:8000";
+process.env.https_proxy="https://cnwuco:welcome19!@proxy.chn.fujixerox.com:8000";
 var req = require('request');
 var async=require('async');
 var sprintf=require('sprintf');
@@ -11,58 +13,63 @@ var package = process.argv[2];
 var npmUrl = "https://www.npmjs.com"
 var url = npmUrl+"/search?q="+package;
 console.log('url:%s\n',url);
-var staticArr=[];
-var packageArr=[];
-async.waterfall(
-  function(callback) {
-      req(url,function(err,res,body){
-        if(!err) {
-          if(res.statusCode === 200) {
-              $(body).find('div[class="package-details"] h3').each(function(index,package){
-                var a = $(package).find('a'); 
-               url = npmUrl+a.attr('href');
-               var packInfo={packName:a.text(),packUrl:npmUrl+a.attr('href');
-               packageArr.push(packInfo);
-              });
-              callback(null,packageArr);
-          }
+
+function getInfoCallBack(packInfo,callback) { 
+       req(npmUrl+packInfo.packUrl,function(err,res,body){
+         if(err) {
+           console.log(err);
+           return;
+         } else {
+           if(res.statusCode === 200) {
+             var  downloads = parseInt($(body).find('strong.monthly-downloads').text());
+             var pack={downloads:downloads,packInfo:sprintf('packName:%s  packUrl:%s',packInfo.packName,packInfo.packUrl)};
+            callback(null,packInfo)
+           }
+         }
+       } );
+}
+
+req(url,function(err,res,body){
+  if(err){
+    console.log(err);
+    return ;
+  }
+  if(!err) {
+    if(res.statusCode === 200) {
+        var packageArr=[];
+        $(body).find('div[class="package-details"] h3').each(function(index,package){
+          var a = $(package).find('a'); 
+         url = npmUrl+a.attr('href');
+         var packInfo={packName:a.text(),packUrl:npmUrl+a.attr('href')};
+         packageArr.push(packInfo);
+        });
+      var callbacks = packageArr.map(function(item) {
+          return getInfoCallBack.bind(null,item);
+      });
+    
+      async.parallel(callbacks,function(err,results){
+        if(err) {
+           console.log(err);
+           return;
         }
+        printResult(results);
       });
     }
-  },
-  function(result,callback) {
-         async.paramel
-         req(npmUrl+a.attr('href'),function(err,res,body){
-           if(err) {
-             console.log(err);
-             return;
-           } else {
-             if(res.statusCode === 200) {
-               var  monthDownloads = $(body).find('strong.monthly-downloads').text();
-                var packInfo = sprintf('package:name=[%s]:url=[%s]:monthDownloads=[%s]',a.text(),a.attr('href'),
-                           monthDownloads
-                           );
-              staticArr.push({packInfo:packInfo,downloads:parseInt(monthDownloads)});;               
-              console.log(staticArr.length);
-             }
-           }
-         } );
-
-  },
-  function(err,result){
-
-  });
-console.log(staticArr.length);
-var sortArr = staticArr.sort(function(a,b) {
-             if(a.downloads > b.downloads) {
-               return 1;
-             }
-             if (a.downloads === b.downloads) {
-               return 0;
-             }
-             return -1;
+  }
 });
 
-for(var i=0;i<sortArr.length;i++){
-  console.log(sortArr[i].packInfo+' downloads:'+sortArr[i].downloads+"\n");
+function printResult(staticArr) {
+  var sortArr = staticArr.sort(function(a,b) {
+                 if(a.downloads > b.downloads) {
+                 return 1;
+               }
+               if (a.downloads === b.downloads) {
+                 return 0;
+               }
+               return -1;
+  });
+
+  for(var i=0;i<sortArr.length;i++){
+    console.log(sortArr[i].packInfo+' downloads:'+sortArr[i].downloads+"\n");
+  }
 }
